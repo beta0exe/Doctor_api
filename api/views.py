@@ -22,17 +22,7 @@ class DoctorViewSet(viewsets.ModelViewSet):
     serializer_class = DoctorSerializer
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
-
-    def get_queryset(self):
-        cache_key = f"doctor_list_{self.request.user.id}"
-        cached_data = cache.get(cache_key)
-        if cached_data:
-            return cached_data
-
-        queryset = Doctor.objects.all()
-        serialized_data = DoctorSerializer(queryset, many=True).data
-        cache.set(cache_key, serialized_data, timeout=40)
-        return queryset
+    queryset = Doctor.objects.all()
 
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
@@ -80,7 +70,7 @@ class BookingviewSet(viewsets.ModelViewSet):
             return cached_data
 
         queryset = Booking.objects.all()
-        serialized_data = DoctorSerializer(queryset, many=True).data
+        serialized_data = BookingSerializer(queryset, many=True).data
         cache.set(cache_key, serialized_data, timeout=40)
         return queryset
 
@@ -100,6 +90,7 @@ class BookingviewSet(viewsets.ModelViewSet):
 
         request.data["patient"] = patient.id
         patient_name = patient.name
+        phone_number = patient.phone_number
         time_slot = request.data.get("time_slots")
         if not time_slot:
             return Response(
@@ -136,8 +127,8 @@ class BookingviewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         headers = self.get_success_headers(serializer.data)
-        print(patient_name)
-        sms_sent = smssender(DAY=day_slot,NAME=patient_name)
+        print(phone_number)
+        sms_sent = smssender(DAY=day_slot,NAME=patient_name,PHONE_NUMBER=phone_number)
         if not sms_sent:
             print("Somthing went wrong")
         return Response(

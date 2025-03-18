@@ -2,11 +2,11 @@ import http.client
 import json
 
 
-def smssender(DAY,NAME):
+def smssender(DAY,NAME,PHONE_NUMBER):
     conn = http.client.HTTPSConnection("api.sms.ir")
 
     payload = {
-        "mobile": "09902122798",
+        "mobile": str(PHONE_NUMBER),
         "templateId": 636881,
         "parameters": [
             {"name":"NAME","value":NAME},{"name":"DAY", "value":DAY},
@@ -24,7 +24,7 @@ def smssender(DAY,NAME):
     headers = {
         'Content-Type': 'application/json',
         'Accept': 'text/plain',
-        'x-api-key': 'Your key here'
+        'x-api-key': 'Change this to your own key '
     }
 
     # Send the request with the JSON payload

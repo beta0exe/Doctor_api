@@ -14,11 +14,13 @@ class DoctorSerializer(serializers.ModelSerializer):
 class PatientSerializer(serializers.ModelSerializer):
     class Meta:
         model = Patient
-        fields = ("id","name")
+        fields = ("id","name","phone_number")
+        read_only_fields = ("id",)
 
 
 class BookingSerializer(serializers.ModelSerializer):
     patient = serializers.PrimaryKeyRelatedField(queryset=Patient.objects.all())
+    doctor = serializers.PrimaryKeyRelatedField(queryset=Doctor.objects.all())
     class Meta:
         model = Booking
         fields = ("id","doctor","date","time_slots","status","patient")

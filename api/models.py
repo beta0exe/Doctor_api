@@ -8,6 +8,7 @@ from django.views.debug import default_urlconf
 class Patient(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     name = models.CharField(max_length=100)
+    phone_number = models.CharField(max_length=20)
 
     def __str__(self):
         return self.name
