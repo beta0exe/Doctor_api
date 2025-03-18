@@ -11,7 +11,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from api.sms import smssender
 from django.utils.decorators import method_decorator
-from django.views.decorators import cache
+from django.core.cache import  cache
 from time import  sleep
 
 
@@ -19,12 +19,21 @@ from time import  sleep
 
 
 class DoctorViewSet(viewsets.ModelViewSet):
-    queryset = Doctor.objects.all()
     serializer_class = DoctorSerializer
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
 
-    @method_decorator(cache_page(40))
+    def get_queryset(self):
+        cache_key = f"doctor_list_{self.request.user.id}"
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            return cached_data
+
+        queryset = Doctor.objects.all()
+        serialized_data = DoctorSerializer(queryset, many=True).data
+        cache.set(cache_key, serialized_data, timeout=40)
+        return queryset
+
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
 
@@ -59,16 +68,26 @@ class DoctorViewSet(viewsets.ModelViewSet):
 
 
 class BookingviewSet(viewsets.ModelViewSet):
-    queryset = Booking.objects.all()
     serializer_class = BookingSerializer
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
+    def get_queryset(self):
+        cache_key = f"booking_list_{self.request.user.id}"
 
-    @method_decorator(cache_page(40))
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            return cached_data
+
+        queryset = Booking.objects.all()
+        serialized_data = DoctorSerializer(queryset, many=True).data
+        cache.set(cache_key, serialized_data, timeout=40)
+        return queryset
+
+
     def list(self, request, *args, **kwargs):
-        sleep(4)
         return super().list(request, *args, **kwargs)
+
 
     def create(self, request, *args, **kwargs):
         try:
