@@ -1,5 +1,7 @@
 from django.shortcuts import render
 from django.template.context_processors import request
+from django.views.decorators.cache import cache_page
+from pyexpat.errors import messages
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from django.db import IntegrityError
@@ -7,7 +9,10 @@ from api.models import Doctor, Booking, Patient
 from api.serializer import DoctorSerializer, BookingSerializer
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
-
+from api.sms import smssender
+from django.utils.decorators import method_decorator
+from django.views.decorators import cache
+from time import  sleep
 
 
 # Create your views here.
@@ -18,6 +23,11 @@ class DoctorViewSet(viewsets.ModelViewSet):
     serializer_class = DoctorSerializer
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
+
+    @method_decorator(cache_page(40))
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
 
     def perform_create(self, serializer):
         if self.request.user.is_anonymous:
@@ -54,23 +64,64 @@ class BookingviewSet(viewsets.ModelViewSet):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
+
+    @method_decorator(cache_page(40))
+    def list(self, request, *args, **kwargs):
+        sleep(4)
+        return super().list(request, *args, **kwargs)
+
     def create(self, request, *args, **kwargs):
         try:
-            # Fetch the patient associated with the authenticated user
             patient = Patient.objects.get(user=request.user)
         except Patient.DoesNotExist:
             return Response(
                 {"success": False, "message": "User must be a registered patient."},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
         request.data["patient"] = patient.id
-        print(f"Request user: {request.user}")
-        print(f"Patient: {patient.id},{request.data['patient']}")
-        print(f"Request data: {request.data}")
+        patient_name = patient.name
+        time_slot = request.data.get("time_slots")
+        if not time_slot:
+            return Response(
+                {"success": False, "message": "No time slot provided."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        doctor_id = request.data.get("doctor")
+        try:
+            doctor = Doctor.objects.get(id=doctor_id)
+        except Doctor.DoesNotExist:
+            return Response(
+                {"success": False, "message": "Doctor does not exist."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         booking = serializer.save(status="Confirmed")
+
+
+
+
+        for slot in doctor.available_slots:
+            if time_slot in slot["slots"]:
+                 day_slot = slot["day"]
+                 slot["slots"].remove(time_slot)
+                 doctor.save()
+                 break
+        else:
+            return Response(
+                {"success": False, "message": "The selected time slot is not available."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         headers = self.get_success_headers(serializer.data)
-        return Response({"success":True,"Message":"Booking Confirmed!","data":serializer.data},
-                            status=status.HTTP_201_CREATED, headers=headers)
+        print(patient_name)
+        sms_sent = smssender(DAY=day_slot,NAME=patient_name)
+        if not sms_sent:
+            print("Somthing went wrong")
+        return Response(
+            {"success": True, "message": "Booking Confirmed!", "data": serializer.data},
+            status=status.HTTP_201_CREATED, headers=headers
+        )
