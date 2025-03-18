@@ -5,7 +5,6 @@ import json
 def smssender(DAY,NAME):
     conn = http.client.HTTPSConnection("api.sms.ir")
 
-    # Define the payload as a dictionary
     payload = {
         "mobile": "09902122798",
         "templateId": 636881,
@@ -16,7 +15,7 @@ def smssender(DAY,NAME):
                 "value": "12345"
             }
         ]
-    }h
+    }
 
     # Convert the payload dictionary to a JSON string
     payload_json = json.dumps(payload)
